@@ -40,6 +40,12 @@ class Game:
 
     """Helper functions"""
 
+    def _turn(self, direction=None):
+        """turn the robot to face direction"""
+        if direction is not None:
+            self.robot.direction = direction
+        return self.robot.direction
+
     def _push(self, direction):
         """try to push values in direction, return True if success"""
         x, y = self.robot.x, self.robot.y
@@ -60,8 +66,7 @@ class Game:
                 if direction == Cardinal.EAST and y in self.outputpos.keys():
                     self._output(y, items_to_move.pop())
                     break
-                else:
-                    return False
+                return False
             items_to_move.append(item)
 
         # move the items
@@ -72,7 +77,7 @@ class Game:
             self.board[y][x] = item
         return True
 
-    # TODO
+    #TODO
     def _output(self, output, val):
         """output a value"""
         print("outputted {} in output {}".format(val, output))
@@ -88,7 +93,7 @@ class Game:
         board = [row + ['##'] for row in self.board]
         for y, name in self.outputpos.items():
             board[y][-1] = name
-        for row in board:   
+        for row in board:
             print(row)
 
     """Actual commands for the players to use"""
@@ -97,32 +102,41 @@ class Game:
         """move the robot. If no direction given, move where the robot is currently
         facing, return True if succesful"""
         r = self.robot
-        if direction is None:
-            direction = r.direction
-        if self._push(direction):
-            self.board[r.y][r.x] = None
-            r.x += direction.value[0]
-            r.y += direction.value[1]
-            self.board[r.y][r.x] = r
-            return True
-        else:
+        direction = self._turn(direction)
+        if not self._push(direction):
             return False
+        self.board[r.y][r.x] = None
+        r.x += direction.value[0]
+        r.y += direction.value[1]
+        self.board[r.y][r.x] = r
+        return True
 
     def grab(self, direction=None):
-        """Make the robot grab a value in direction"""
-        if direction is None:
-            direction = self.robot.direction
+        """Make the robot grab a value in neighboring cell in direction"""
+        direction = self._turn(direction)
         x = self.robot.x + direction.value[0]
         y = self.robot.y + direction.value[1]
-        try:
-            if x < 0 or y < 0:
-                raise IndexError
-            item = self.board[y][x]
-            if item is not None:
-                self.robot.val = item
-                self.board[y][x] = None
-                return True
-            else:
-                raise TypeError
-        except IndexError or TypeError:
+        if self.robot.val is not None or x < 0 or y < 0:
             return False
+        try:
+            self.robot.val = self.board[y][x]
+        except IndexError:
+            return False  # trying to grab an item outside of the board
+        self.board[y][x] = None
+        return True
+
+    def drop(self, direction=None):
+        """Make the robot drop the value it's holding in the neighboring cell in direction"""
+        direction = self._turn(direction)
+        x = self.robot.x + direction.value[0]
+        y = self.robot.y + direction.value[1]
+        if self.robot.val is None or x < 0 or y < 0:
+            return False
+        if not self._push(direction):
+            return False
+        try:
+            self.board[y][x] = self.robot.val
+        except IndexError:
+            return False  # trying to place an item outside of the board
+        self.robot.val = None
+        return True
